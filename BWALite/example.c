@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <zlib.h>
 #include <string.h>
+#include <errno.h>
 #include <assert.h>
 #include "bwamem.h"
 #include "kseq.h" // for the FASTA/Q parser
@@ -19,9 +20,17 @@ int main(int argc, char *argv[])
 	}
 
 	idx = bwa_idx_load(argv[1], BWA_IDX_ALL); // load the BWA index
-	assert(idx);
+	if (NULL == idx) {
+		fprintf(stderr, "Index load failed.\n");
+		exit(EXIT_FAILURE);
+	}
 	fp = strcmp(argv[2], "-")? gzopen(argv[2], "r") : gzdopen(fileno(stdin), "r");
-	assert(fp);
+	if (NULL == fp) {
+		fprintf(stderr, "Couldn't open %s : %s\n",
+				strcmp(argv[2], "-") ? argv[2] : "stdin",
+				errno ? strerror(errno) : "Out of memory");
+		exit(EXIT_FAILURE);
+	}
 	ks = kseq_init(fp); // initialize the FASTA/Q parser
 	opt = mem_opt_init(); // initialize the BWA-MEM parameters to the default values
 

@@ -4,7 +4,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "port.h"
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+#endif
 #include "bntseq.h"
 #include "bwt_lite.h"
 #include "utils.h"
@@ -19,6 +21,11 @@ KSEQ_DECLARE(gzFile)
 #include "ksort.h"
 #define __left_lt(a, b) ((a).end > (b).end)
 KSORT_INIT(hit, bsw2hit_t, __left_lt)
+
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
+
 
 extern unsigned char nst_nt4_table[256];
 
@@ -123,7 +130,7 @@ void bsw2_extend_left(const bsw2opt_t *opt, bwtsw2_t *b, uint8_t *_query, int lq
 		for (k = p->k - 1, j = 0; k > 0 && j < lt; --k) // FIXME: k=0 not considered!
 			target[j++] = pac[k>>2] >> (~k&3)*2 & 0x3;
 		lt = j;
-		score = ksw_extend(p->beg, &query[lq - p->beg], lt, target, 5, mat, opt->q, opt->r, opt->bw, -1, p->G, &qle, &tle, 0, 0, 0);
+		score = ksw_extend(p->beg, &query[lq - p->beg], lt, target, 5, mat, opt->q, opt->r, opt->bw, 0, -1, p->G, &qle, &tle, 0, 0, 0);
 		if (score > p->G) { // extensible
 			p->G = score;
 			p->k -= tle;
@@ -151,7 +158,7 @@ void bsw2_extend_rght(const bsw2opt_t *opt, bwtsw2_t *b, uint8_t *query, int lq,
 		for (k = p->k, j = 0; k < p->k + lt && k < l_pac; ++k)
 			target[j++] = pac[k>>2] >> (~k&3)*2 & 0x3;
 		lt = j;
-		score = ksw_extend(lq - p->beg, &query[p->beg], lt, target, 5, mat, opt->q, opt->r, opt->bw, -1, 1, &qle, &tle, 0, 0, 0) - 1;
+		score = ksw_extend(lq - p->beg, &query[p->beg], lt, target, 5, mat, opt->q, opt->r, opt->bw, 0, -1, 1, &qle, &tle, 0, 0, 0) - 1;
 //		if (score < p->G) fprintf(stderr, "[bsw2_extend_hits] %d < %d\n", score, p->G);
 		if (score >= p->G) {
 			p->G = score;
@@ -186,7 +193,7 @@ static void gen_cigar(const bsw2opt_t *opt, int lq, uint8_t *seq[2], int64_t l_p
 				if ((q->cigar[j]&0xf) == 1 || (q->cigar[j]&0xf) == 2)
 					glen += q->cigar[j]>>4;
 			fprintf(stderr, "[E::%s] %s - unequal score: %d != %d; (qlen, aqlen, arlen, glen, bw) = (%d, %d, %d, %d, %d)\n",
-					__FUNCTION__, name, score, p->G, lq, end - beg, p->len, glen, opt->bw);
+					__func__, name, score, p->G, lq, end - beg, p->len, glen, opt->bw);
 		}
 #endif
 		if (q->cigar && (beg != 0 || end < lq)) { // write soft clipping
@@ -708,12 +715,12 @@ static void process_seqs(bsw2seq_t *_seq, const bsw2opt_t *opt, const bntseq_t *
 	// print and reset
 	for (i = 0; i < _seq->n; ++i) {
 		bsw2seq1_t *p = _seq->seq + i;
-		if (p->sam) printf("%s", p->sam);
+		if (p->sam) err_printf("%s", p->sam);
 		free(p->name); free(p->seq); free(p->qual); free(p->sam);
 		p->tid = -1; p->l = 0;
 		p->name = p->seq = p->qual = p->sam = 0;
 	}
-	fflush(stdout);
+	err_fflush(stdout);
 	_seq->n = 0;
 }
 
@@ -727,13 +734,9 @@ void bsw2_aln(const bsw2opt_t *opt, const bntseq_t *bns, bwt_t * const target, c
 	bseq1_t *bseq;
 
 	pac = calloc(bns->l_pac/4+1, 1);
-	if (pac == 0) {
-		fprintf(stderr, "[bsw2_aln] insufficient memory!\n");
-		return;
-	}
 	for (l = 0; l < bns->n_seqs; ++l)
-		printf("@SQ\tSN:%s\tLN:%d\n", bns->anns[l].name, bns->anns[l].len);
-	fread(pac, 1, bns->l_pac/4+1, bns->fp_pac);
+		err_printf("@SQ\tSN:%s\tLN:%d\n", bns->anns[l].name, bns->anns[l].len);
+	err_fread_noeof(pac, 1, bns->l_pac/4+1, bns->fp_pac);
 	fp = xzopen(fn, "r");
 	ks = kseq_init(fp);
 	_seq = calloc(1, sizeof(bsw2seq_t));
@@ -765,9 +768,9 @@ void bsw2_aln(const bsw2opt_t *opt, const bntseq_t *bns, bwt_t * const target, c
 	free(pac);
 	free(_seq->seq); free(_seq);
 	kseq_destroy(ks);
-	gzclose(fp);
+	err_gzclose(fp);
 	if (fn2) {
 		kseq_destroy(ks2);
-		gzclose(fp2);
+		err_gzclose(fp2);
 	}
 }

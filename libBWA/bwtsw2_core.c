@@ -1,12 +1,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "port.h"
+#include <sys/resource.h>
 #include <assert.h>
 #include "bwt_lite.h"
 #include "bwtsw2.h"
 #include "bwt.h"
 #include "kvec.h"
+
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
 
 typedef struct {
 	bwtint_t k, l;
@@ -55,8 +59,8 @@ typedef struct {
 
 #define stack_isempty(s) (kv_size(s->stack0) == 0 && s->n_pending == 0)
 static void stack_destroy(bsw2stack_t *s) { mp_destroy(s->pool); kv_destroy(s->stack0); kv_destroy(s->pending); free(s); }
-myinline static void stack_push0(bsw2stack_t *s, bsw2entry_p e) { kv_push(bsw2entry_p, s->stack0, e); }
-myinline static bsw2entry_p stack_pop(bsw2stack_t *s)
+inline static void stack_push0(bsw2stack_t *s, bsw2entry_p e) { kv_push(bsw2entry_p, s->stack0, e); }
+inline static bsw2entry_p stack_pop(bsw2stack_t *s)
 {
 	assert(!(kv_size(s->stack0) == 0 && s->n_pending != 0));
 	return kv_pop(s->stack0);
@@ -68,13 +72,13 @@ typedef struct __mempool_t {
 	int cnt; // if cnt!=0, then there must be memory leak
 	kvec_t(bsw2entry_p) pool;
 } mempool_t;
-myinline static bsw2entry_p mp_alloc(mempool_t *mp)
+inline static bsw2entry_p mp_alloc(mempool_t *mp)
 {
 	++mp->cnt;
 	if (kv_size(mp->pool) == 0) return (bsw2entry_t*)calloc(1, sizeof(bsw2entry_t));
 	else return kv_pop(mp->pool);
 }
-myinline static void mp_free(mempool_t *mp, bsw2entry_p e)
+inline static void mp_free(mempool_t *mp, bsw2entry_p e)
 {
 	--mp->cnt; e->n = 0;
 	kv_push(bsw2entry_p, mp->pool, e);
@@ -152,7 +156,7 @@ static void cut_tail(bsw2entry_t *u, int T, bsw2entry_t *aux)
 	}
 }
 // remove duplicated cells
-static myinline void remove_duplicate(bsw2entry_t *u, khash_t(qintv) *hash)
+static inline void remove_duplicate(bsw2entry_t *u, khash_t(qintv) *hash)
 {
 	int i, ret, j;
 	khiter_t k;
@@ -198,7 +202,7 @@ static void merge_entry(const bsw2opt_t * __restrict opt, bsw2entry_t *u, bsw2en
 	u->n += v->n;
 }
 
-static myinline bsw2cell_t *push_array_p(bsw2entry_t *e)
+static inline bsw2cell_t *push_array_p(bsw2entry_t *e)
 {
 	if (e->n == e->max) {
 		e->max = e->max? e->max<<1 : 256;
@@ -207,7 +211,7 @@ static myinline bsw2cell_t *push_array_p(bsw2entry_t *e)
 	return e->array + e->n;
 }
 
-static myinline double time_elapse(const struct rusage *curr, const struct rusage *last)
+static inline double time_elapse(const struct rusage *curr, const struct rusage *last)
 {
 	long t1 = (curr->ru_utime.tv_sec - last->ru_utime.tv_sec) + (curr->ru_stime.tv_sec - last->ru_stime.tv_sec);
 	long t2 = (curr->ru_utime.tv_usec - last->ru_utime.tv_usec) + (curr->ru_stime.tv_usec - last->ru_stime.tv_usec);
@@ -414,7 +418,7 @@ void bsw2_global_destroy(bsw2global_t *pool)
 }
 /* --- END: global mem pool --- */
 
-static myinline int fill_cell(const bsw2opt_t *o, int match_score, bsw2cell_t *c[4])
+static inline int fill_cell(const bsw2opt_t *o, int match_score, bsw2cell_t *c[4])
 {
 	int G = c[3]? c[3]->G + match_score : MINUS_INF;
 	if (c[1]) {

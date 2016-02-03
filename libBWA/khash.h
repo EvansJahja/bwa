@@ -116,6 +116,10 @@ int main() {
 #include <string.h>
 #include <limits.h>
 
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
+
 /* compipler specific configuration */
 
 #if UINT_MAX == 0xffffffffu
@@ -133,7 +137,7 @@ typedef unsigned long long khint64_t;
 #ifdef _MSC_VER
 #define kh_inline __inline
 #else
-#define kh_inline myinline
+#define kh_inline inline
 #endif
 
 typedef khint32_t khint_t;

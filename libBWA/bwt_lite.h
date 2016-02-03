@@ -2,7 +2,6 @@
 #define BWT_LITE_H_
 
 #include <stdint.h>
-#include "port.h"
 
 typedef struct {
 	uint32_t seq_len, bwt_size, n_occ;

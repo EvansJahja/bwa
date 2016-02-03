@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "port.h"
+#include <unistd.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +13,13 @@
 #include "utils.h"
 #include "bwa.h"
 
-#include "port.h"
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+#endif
+
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
 
 gap_opt_t *gap_init_opt()
 {
@@ -110,6 +116,7 @@ void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt, int n_seqs, bwa_seq_t *seqs, 
 		for (j = 0; j < p->len; ++j) // we need to complement
 			p->seq[j] = p->seq[j] > 3? 4 : 3 - p->seq[j];
 		p->aln = bwt_match_gap(bwt, p->len, p->seq, w, p->len <= opt->seed_len? 0 : seed_w, &local_opt, &p->n_aln, stack);
+		//fprintf(stderr, "mm=%lld,ins=%lld,del=%lld,gapo=%lld\n", p->aln->n_mm, p->aln->n_ins, p->aln->n_del, p->aln->n_gapo);
 		// clean up the unused data in the record
 		free(p->name); free(p->seq); free(p->rseq); free(p->qual);
 		p->name = 0; p->seq = p->rseq = p->qual = 0;
@@ -149,11 +156,6 @@ bwa_seqio_t *bwa_open_reads(int mode, const char *fn_fa)
 	return ks;
 }
 
-#ifdef WIN32
-#include <io.h>
-#include <fcntl.h>
-#endif
-
 void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 {
 	int i, n_seqs, tot_seqs = 0;
@@ -171,15 +173,8 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 		free(str);
 	}
 
-#ifdef WIN32
-	// patch for windows by chuntao
-	// by default, stdout is opened in text mode, when fwrite, two 0x0D will be 
-	// automatically placed in stdout, causing file corruption
-	// setting mode to binary will fix the problem
-	_setmode(_fileno(stdout), _O_BINARY);
-#endif
-
 	// core loop
+	err_fwrite(SAI_MAGIC, 1, 4, stdout);
 	err_fwrite(opt, sizeof(gap_opt_t), 1, stdout);
 	while ((seqs = bwa_read_seq(ks, 0x40000, &n_seqs, opt->mode, opt->trim_qual)) != 0) {
 		tot_seqs += n_seqs;
@@ -211,7 +206,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 		bwa_cal_sa_reg_gap(0, bwt, n_seqs, seqs, opt);
 #endif
 
-		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC); t = clock();
+		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 		t = clock();
 		fprintf(stderr, "[bwa_aln_core] write to the disk... ");
@@ -220,7 +215,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 			err_fwrite(&p->n_aln, 4, 1, stdout);
 			if (p->n_aln) err_fwrite(p->aln, sizeof(bwt_aln1_t), p->n_aln, stdout);
 		}
-		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC); t = clock();
+		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 		bwa_free_read_seq(n_seqs, seqs);
 		fprintf(stderr, "[bwa_aln_core] %d sequences have been processed.\n", tot_seqs);
@@ -315,9 +310,9 @@ int bwa_aln(int argc, char *argv[])
 		}
 	}
 	if ((prefix = bwa_idx_infer_prefix(argv[optind])) == 0) {
-		fprintf(stderr, "[%s] fail to locate the index\n", __FUNCTION__);
+		fprintf(stderr, "[%s] fail to locate the index\n", __func__);
 		free(opt);
-		return 0;
+		return 1;
 	}
 	bwa_aln_core(prefix, argv[optind+1], opt);
 	free(opt); free(prefix);
