@@ -17,13 +17,13 @@ char bwa_rg_id[256];
 #include "kseq.h"
 KSEQ_DECLARE(gzFile)
 
-static myinline void trim_readno(kstring_t *s)
+static inline void trim_readno(kstring_t *s)
 {
 	if (s->l > 2 && s->s[s->l-2] == '/' && isdigit(s->s[s->l-1]))
 		s->l -= 2, s->s[s->l] = 0;
 }
 
-static myinline void kseq2bseq1(const kseq_t *ks, bseq1_t *s)
+static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s)
 { // TODO: it would be better to allocate one chunk of memory, but probably it does not matter in practice
 	s->name = strdup(ks->name.s);
 	s->comment = ks->comment.l? strdup(ks->comment.s) : 0;
@@ -40,7 +40,7 @@ bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
 	m = n = 0; seqs = 0;
 	while (kseq_read(ks) >= 0) {
 		if (ks2 && kseq_read(ks2) < 0) { // the 2nd file has fewer reads
-			fprintf(stderr, "[W::%s] the 2nd file has fewer sequences.\n", __FUNCTION__);
+			fprintf(stderr, "[W::%s] the 2nd file has fewer sequences.\n", __func__);
 			break;
 		}
 		if (n >= m) {
@@ -59,7 +59,7 @@ bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
 	}
 	if (size == 0) { // test if the 2nd file is finished
 		if (ks2 && kseq_read(ks2) >= 0)
-			fprintf(stderr, "[W::%s] the 1st file has fewer sequences.\n", __FUNCTION__);
+			fprintf(stderr, "[W::%s] the 1st file has fewer sequences.\n", __func__);
 	}
 	*n_ = n;
 	return seqs;
@@ -231,7 +231,7 @@ bwt_t *bwa_idx_load_bwt(const char *hint)
 	bwt_t *bwt;
 	prefix = bwa_idx_infer_prefix(hint);
 	if (prefix == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __FUNCTION__);
+		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __func__);
 		return 0;
 	}
 	tmp = calloc(strlen(prefix) + 5, 1);
@@ -249,7 +249,7 @@ bwaidx_t *bwa_idx_load(const char *hint, int which)
 	char *prefix;
 	prefix = bwa_idx_infer_prefix(hint);
 	if (prefix == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __FUNCTION__);
+		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __func__);
 		return 0;
 	}
 	idx = calloc(1, sizeof(bwaidx_t));
@@ -309,19 +309,19 @@ char *bwa_set_rg(const char *s)
 	char *p, *q, *r, *rg_line = 0;
 	memset(bwa_rg_id, 0, 256);
 	if (strstr(s, "@RG") != s) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] the read group line is not started with @RG\n", __FUNCTION__);
+		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] the read group line is not started with @RG\n", __func__);
 		goto err_set_rg;
 	}
 	rg_line = strdup(s);
 	bwa_escape(rg_line);
 	if ((p = strstr(rg_line, "\tID:")) == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] no ID at the read group line\n", __FUNCTION__);
+		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] no ID at the read group line\n", __func__);
 		goto err_set_rg;
 	}
 	p += 4;
 	for (q = p; *q && *q != '\t' && *q != '\n'; ++q);
 	if (q - p + 1 > 256) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] @RG:ID is longer than 255 characters\n", __FUNCTION__);
+		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] @RG:ID is longer than 255 characters\n", __func__);
 		goto err_set_rg;
 	}
 	for (q = p, r = bwa_rg_id; *q && *q != '\t' && *q != '\n'; ++q)

@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,7 +7,6 @@
 #include "kvec.h"
 #include "utils.h"
 #include "ksw.h"
-#include "port.h"
 
 #define MIN_RATIO     0.8
 #define MIN_DIR_CNT   10
@@ -17,7 +15,7 @@
 #define MAPPING_BOUND 3.0
 #define MAX_STDDEV    4.0
 
-static myinline int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
+static inline int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
 {
 	int64_t p2;
 	int r1 = (b1 >= l_pac), r2 = (b2 >= l_pac);

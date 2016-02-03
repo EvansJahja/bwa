@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
-#include "port.h"
+#include <unistd.h>
 #include "bntseq.h"
 #include "utils.h"
 

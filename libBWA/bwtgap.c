@@ -41,7 +41,7 @@ static void gap_reset_stack(gap_stack_t *stack)
 	stack->n_entries = 0;
 }
 
-static myinline void gap_push(gap_stack_t *stack, int i, bwtint_t k, bwtint_t l, int n_mm, int n_gapo, int n_gape,
+static inline void gap_push(gap_stack_t *stack, int i, bwtint_t k, bwtint_t l, int n_mm, int n_gapo, int n_gape,
 							int state, int is_diff, const gap_opt_t *opt)
 {
 	int score;
@@ -62,7 +62,7 @@ static myinline void gap_push(gap_stack_t *stack, int i, bwtint_t k, bwtint_t l,
 	if (stack->best > score) stack->best = score;
 }
 
-static myinline void gap_pop(gap_stack_t *stack, gap_entry_t *e)
+static inline void gap_pop(gap_stack_t *stack, gap_entry_t *e)
 {
 	gap_stack1_t *q;
 	q = stack->stacks + stack->best;
@@ -77,7 +77,7 @@ static myinline void gap_pop(gap_stack_t *stack, gap_entry_t *e)
 	} else if (stack->n_entries == 0) stack->best = stack->n_stacks;
 }
 
-static myinline void gap_shadow(int x, int len, bwtint_t max, int last_diff_pos, bwt_width_t *w)
+static inline void gap_shadow(int x, int len, bwtint_t max, int last_diff_pos, bwt_width_t *w)
 {
 	int i, j;
 	for (i = j = 0; i < last_diff_pos; ++i) {
@@ -89,7 +89,7 @@ static myinline void gap_shadow(int x, int len, bwtint_t max, int last_diff_pos,
 	}
 }
 
-static myinline int int_log2(uint32_t v)
+static inline int int_log2(uint32_t v)
 {
 	int c = 0;
 	if (v & 0xffff0000u) { v >>= 16; c |= 16; }

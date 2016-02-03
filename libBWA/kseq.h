@@ -48,14 +48,14 @@
 #define ks_rewind(ks) ((ks)->is_eof = (ks)->begin = (ks)->end = 0)
 
 #define __KS_BASIC(type_t, __bufsize)								\
-	static myinline kstream_t *ks_init(type_t f)						\
+	static inline kstream_t *ks_init(type_t f)						\
 	{																\
 		kstream_t *ks = (kstream_t*)calloc(1, sizeof(kstream_t));	\
 		ks->f = f;													\
 		ks->buf = (unsigned char*)malloc(__bufsize);				\
 		return ks;													\
 	}																\
-	static myinline void ks_destroy(kstream_t *ks)					\
+	static inline void ks_destroy(kstream_t *ks)					\
 	{																\
 		if (ks) {													\
 			free(ks->buf);											\
@@ -64,7 +64,7 @@
 	}
 
 #define __KS_GETC(__read, __bufsize)						\
-	static myinline int ks_getc(kstream_t *ks)				\
+	static inline int ks_getc(kstream_t *ks)				\
 	{														\
 		if (ks->is_eof && ks->begin >= ks->end) return -1;	\
 		if (ks->begin >= ks->end) {							\
@@ -137,7 +137,7 @@ typedef struct __kstring_t {
 		str->s[str->l] = '\0';											\
 		return str->l;													\
 	} \
-	static myinline int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
+	static inline int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
 	{ return ks_getuntil2(ks, delimiter, str, dret, 0); }
 
 #define KSTREAM_INIT(type_t, __read, __bufsize) \

@@ -97,7 +97,7 @@ typedef struct {
 	} while (0)
 
 #define __KB_GET_AUX0(name, key_t, __cmp)								\
-	static myinline int __kb_get_aux_##name(const kbnode_t * __restrict x, const key_t * __restrict k, int *r) \
+	static inline int __kb_get_aux_##name(const kbnode_t * __restrict x, const key_t * __restrict k, int *r) \
 	{																	\
 		int tr, *rr, begin, end, n = x->n >> 1;							\
 		if (x->n == 0) return -1;										\
@@ -111,7 +111,7 @@ typedef struct {
 	}
 
 #define __KB_GET_AUX1(name, key_t, __cmp)								\
-	static myinline int __kb_getp_aux_##name(const kbnode_t * __restrict x, const key_t * __restrict k, int *r) \
+	static inline int __kb_getp_aux_##name(const kbnode_t * __restrict x, const key_t * __restrict k, int *r) \
 	{																	\
 		int tr, *rr, begin = 0, end = x->n;								\
 		if (x->n == 0) return -1;										\
@@ -139,7 +139,7 @@ typedef struct {
 		}																\
 		return 0;														\
 	}																	\
-	static myinline key_t *kb_get_##name(kbtree_##name##_t *b, const key_t k) \
+	static inline key_t *kb_get_##name(kbtree_##name##_t *b, const key_t k) \
 	{																	\
 		return kb_getp_##name(b, &k);									\
 	}
@@ -162,7 +162,7 @@ typedef struct {
 			x = __KB_PTR(b, x)[i + 1];									\
 		}																\
 	}																	\
-	static myinline void kb_interval_##name(kbtree_##name##_t *b, const key_t k, key_t **lower, key_t **upper) \
+	static inline void kb_interval_##name(kbtree_##name##_t *b, const key_t k, key_t **lower, key_t **upper) \
 	{																	\
 		kb_intervalp_##name(b, &k, lower, upper);						\
 	}
@@ -218,7 +218,7 @@ typedef struct {
 		}																\
 		__kb_putp_aux_##name(b, r, k);									\
 	}																	\
-	static myinline void kb_put_##name(kbtree_##name##_t *b, const key_t k) \
+	static inline void kb_put_##name(kbtree_##name##_t *b, const key_t k) \
 	{																	\
 		kb_putp_##name(b, &k);											\
 	}
@@ -319,7 +319,7 @@ typedef struct {
 		}																\
 		return ret;														\
 	}																	\
-	static myinline key_t kb_del_##name(kbtree_##name##_t *b, const key_t k) \
+	static inline key_t kb_del_##name(kbtree_##name##_t *b, const key_t k) \
 	{																	\
 		return kb_delp_##name(b, &k);									\
 	}

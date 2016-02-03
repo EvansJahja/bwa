@@ -4,7 +4,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "port.h"
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+#endif
 #include "bntseq.h"
 #include "bwt_lite.h"
 #include "utils.h"
@@ -186,7 +188,7 @@ static void gen_cigar(const bsw2opt_t *opt, int lq, uint8_t *seq[2], int64_t l_p
 				if ((q->cigar[j]&0xf) == 1 || (q->cigar[j]&0xf) == 2)
 					glen += q->cigar[j]>>4;
 			fprintf(stderr, "[E::%s] %s - unequal score: %d != %d; (qlen, aqlen, arlen, glen, bw) = (%d, %d, %d, %d, %d)\n",
-					__FUNCTION__, name, score, p->G, lq, end - beg, p->len, glen, opt->bw);
+					__func__, name, score, p->G, lq, end - beg, p->len, glen, opt->bw);
 		}
 #endif
 		if (q->cigar && (beg != 0 || end < lq)) { // write soft clipping

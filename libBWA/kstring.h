@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "port.h"
 
 #ifndef kroundup32
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
@@ -17,7 +16,7 @@ typedef struct __kstring_t {
 } kstring_t;
 #endif
 
-static myinline void ks_resize(kstring_t *s, size_t size)
+static inline void ks_resize(kstring_t *s, size_t size)
 {
 	if (s->m < size) {
 		s->m = size;
@@ -26,7 +25,7 @@ static myinline void ks_resize(kstring_t *s, size_t size)
 	}
 }
 
-static myinline int kputsn(const char *p, int l, kstring_t *s)
+static inline int kputsn(const char *p, int l, kstring_t *s)
 {
 	if (s->l + l + 1 >= s->m) {
 		s->m = s->l + l + 2;
@@ -39,12 +38,12 @@ static myinline int kputsn(const char *p, int l, kstring_t *s)
 	return l;
 }
 
-static myinline int kputs(const char *p, kstring_t *s)
+static inline int kputs(const char *p, kstring_t *s)
 {
 	return kputsn(p, strlen(p), s);
 }
 
-static myinline int kputc(int c, kstring_t *s)
+static inline int kputc(int c, kstring_t *s)
 {
 	if (s->l + 1 >= s->m) {
 		s->m = s->l + 2;
@@ -56,7 +55,7 @@ static myinline int kputc(int c, kstring_t *s)
 	return c;
 }
 
-static myinline int kputw(int c, kstring_t *s)
+static inline int kputw(int c, kstring_t *s)
 {
 	char buf[16];
 	int l, x;
@@ -73,7 +72,7 @@ static myinline int kputw(int c, kstring_t *s)
 	return 0;
 }
 
-static myinline int kputuw(unsigned c, kstring_t *s)
+static inline int kputuw(unsigned c, kstring_t *s)
 {
 	char buf[16];
 	int l, i;
@@ -90,7 +89,7 @@ static myinline int kputuw(unsigned c, kstring_t *s)
 	return 0;
 }
 
-static myinline int kputl(long c, kstring_t *s)
+static inline int kputl(long c, kstring_t *s)
 {
 	char buf[32];
 	long l, x;

@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "port.h"
+#include <unistd.h>
 #include <string.h>
 #include <zlib.h>
+#include <pthread.h>
 #include "ksw.h"
 #include "kseq.h"
 #include "kstring.h"
@@ -137,7 +138,7 @@ pem_ret:
 	return ret;
 }
 
-static myinline void print_bseq(const bseq1_t *s, int rn)
+static inline void print_bseq(const bseq1_t *s, int rn)
 {
 	putchar(s->qual? '@' : '>');
 	fputs(s->name, stdout);
