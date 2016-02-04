@@ -1,4 +1,5 @@
-#include <unistd.h>
+#define _USE_MATH_DEFINES
+#include "port.h"
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
@@ -297,7 +298,7 @@ int bwa_cal_pac_pos_pe(const bntseq_t *bns, const char *prefix, bwt_t *const _bw
 	infer_isize(n_seqs, seqs, ii, opt->ap_prior, bwt->seq_len/2);
 	if (ii->avg < 0.0 && last_ii->avg > 0.0) *ii = *last_ii;
 	if (opt->force_isize) {
-		fprintf(stderr, "[%s] discard insert size estimate as user's request.\n", __func__);
+		fprintf(stderr, "[%s] discard insert size estimate as user's request.\n", __FUNCTION__);
 		ii->low = ii->high = 0; ii->avg = ii->std = -1.0;
 	}
 
@@ -328,8 +329,9 @@ int bwa_cal_pac_pos_pe(const bntseq_t *bns, const char *prefix, bwt_t *const _bw
 					if (0 && r->l - r->k + 1 >= MIN_HASH_WIDTH) { // then check hash table
 						pair64_t key;
 						int ret;
+						khint_t iter;
 						key.x = r->k; key.y = r->l;
-						khint_t iter = kh_put(b128, g_hash, key, &ret);
+						iter = kh_put(b128, g_hash, key, &ret);
 						if (ret) { // not in the hash table; ret must equal 1 as we never remove elements
 							poslist_t *z = &kh_val(g_hash, iter);
 							z->n = r->l - r->k + 1;
@@ -634,8 +636,15 @@ void bwa_sai2sam_pe_core(const char *prefix, char *const fn_sa[2], char *const f
 	for (i = 1; i != 256; ++i) g_log_n[i] = (int)(4.343 * log(i) + 0.5);
 	bns = bns_restore(prefix);
 	srand48(bns->seed);
+#ifdef WIN32
+	// patch by chuntao
+	// "r" mode will cause the program to hit EOF unexpectly
+	fp_sa[0] = xopen(fn_sa[0], "rb");
+	fp_sa[1] = xopen(fn_sa[1], "rb");
+#else
 	fp_sa[0] = xopen(fn_sa[0], "r");
 	fp_sa[1] = xopen(fn_sa[1], "r");
+#endif
 	g_hash = kh_init(b128);
 	last_ii.avg = -1.0;
 
@@ -759,7 +768,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 		return 1;
 	}
 	if ((prefix = bwa_idx_infer_prefix(argv[optind])) == 0) {
-		fprintf(stderr, "[%s] fail to locate the index\n", __func__);
+		fprintf(stderr, "[%s] fail to locate the index\n", __FUNCTION__);
 		return 0;
 	}
 	bwa_sai2sam_pe_core(prefix, argv + optind + 1, argv + optind+3, popt, rg_line);

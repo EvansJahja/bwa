@@ -1,6 +1,6 @@
 #include <zlib.h>
 #include <stdio.h>
-#include <unistd.h>
+#include "port.h"
 #include <stdlib.h>
 #include "bwa.h"
 #include "bwamem.h"
@@ -17,7 +17,11 @@ int kclose(void *a);
 int main_mem(int argc, char *argv[])
 {
 	mem_opt_t *opt;
+#ifndef WINDOWS_PORT
 	int fd, fd2, i, c, n, copy_comment = 0;
+#else
+	int i, c, n, copy_comment = 0;
+#endif
 	gzFile fp, fp2 = 0;
 	kseq_t *ks, *ks2 = 0;
 	bseq1_t *seqs;
@@ -90,16 +94,24 @@ int main_mem(int argc, char *argv[])
 	if ((idx = bwa_idx_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
 	bwa_print_sam_hdr(idx->bns, rg_line);
 
+#ifndef WINDOWS_PORT
 	ko = kopen(argv[optind + 1], &fd);
 	fp = gzdopen(fd, "r");
+#else
+	fp = gzopen(argv[optind + 1], "r");
+#endif
 	ks = kseq_init(fp);
 	if (optind + 2 < argc) {
 		if (opt->flag&MEM_F_PE) {
 			if (bwa_verbose >= 2)
-				fprintf(stderr, "[W::%s] when '-p' is in use, the second query file will be ignored.\n", __func__);
+				fprintf(stderr, "[W::%s] when '-p' is in use, the second query file will be ignored.\n", __FUNCTION__);
 		} else {
+#ifndef WINDOWS_PORT
 			ko2 = kopen(argv[optind + 2], &fd2);
 			fp2 = gzdopen(fd2, "r");
+#else
+			fp2 = gzopen(argv[optind + 2], "r");
+#endif
 			ks2 = kseq_init(fp2);
 			opt->flag |= MEM_F_PE;
 		}
@@ -108,7 +120,7 @@ int main_mem(int argc, char *argv[])
 		int64_t size = 0;
 		if ((opt->flag & MEM_F_PE) && (n&1) == 1) {
 			if (bwa_verbose >= 2)
-				fprintf(stderr, "[W::%s] odd number of reads in the PE mode; last read dropped\n", __func__);
+				fprintf(stderr, "[W::%s] odd number of reads in the PE mode; last read dropped\n", __FUNCTION__);
 			n = n>>1<<1;
 		}
 		if (!copy_comment)
@@ -117,7 +129,7 @@ int main_mem(int argc, char *argv[])
 			}
 		for (i = 0; i < n; ++i) size += seqs[i].l_seq;
 		if (bwa_verbose >= 3)
-			fprintf(stderr, "[M::%s] read %d sequences (%ld bp)...\n", __func__, n, (long)size);
+			fprintf(stderr, "[M::%s] read %d sequences (%ld bp)...\n", __FUNCTION__, n, (long)size);
 		mem_process_seqs(opt, idx->bwt, idx->bns, idx->pac, n, seqs);
 		free(seqs);
 	}
@@ -125,10 +137,18 @@ int main_mem(int argc, char *argv[])
 	free(opt);
 	bwa_idx_destroy(idx);
 	kseq_destroy(ks);
+#ifndef WINDOWS_PORT
 	gzclose(fp); kclose(ko);
+#else
+	gzclose(fp);
+#endif
 	if (ks2) {
 		kseq_destroy(ks2);
+#ifndef WINDOWS_PORT
 		gzclose(fp2); kclose(ko2);
+#else
+		gzclose(fp2);
+#endif
 	}
 	return 0;
 }

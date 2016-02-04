@@ -45,7 +45,7 @@ void bwt_gen_cnt_table(bwt_t *bwt)
 	}
 }
 
-static inline bwtint_t bwt_invPsi(const bwt_t *bwt, bwtint_t k) // compute inverse CSA
+static myinline bwtint_t bwt_invPsi(const bwt_t *bwt, bwtint_t k) // compute inverse CSA
 {
 	bwtint_t x = k - (k > bwt->primary);
 	x = bwt_B0(bwt, x);
@@ -68,7 +68,7 @@ void bwt_cal_sa(bwt_t *bwt, int intv)
 	bwt->n_sa = (bwt->seq_len + intv) / intv;
 	bwt->sa = (bwtint_t*)calloc(bwt->n_sa, sizeof(bwtint_t));
 	if (bwt->sa == 0) {
-		fprintf(stderr, "[%s] Fail to allocate %.3fMB memory. Abort!\n", __func__, bwt->n_sa * sizeof(bwtint_t) / 1024.0/1024.0);
+		fprintf(stderr, "[%s] Fail to allocate %.3fMB memory. Abort!\n", __FUNCTION__, bwt->n_sa * sizeof(bwtint_t) / 1024.0/1024.0);
 		abort();
 	}
 	// calculate SA value
@@ -94,7 +94,7 @@ bwtint_t bwt_sa(const bwt_t *bwt, bwtint_t k)
 	return sa + bwt->sa[k/bwt->sa_intv];
 }
 
-static inline int __occ_aux(uint64_t y, int c)
+static myinline int __occ_aux(uint64_t y, int c)
 {
 	// reduce nucleotide counting to bits counting
 	y = ((c&2)? y : ~y) >> 1 & ((c&1)? y : ~y) & 0x5555555555555555ull;
@@ -401,10 +401,10 @@ bwt_t *bwt_restore_bwt(const char *fn)
 
 	bwt = (bwt_t*)calloc(1, sizeof(bwt_t));
 	fp = xopen(fn, "rb");
-	fseek(fp, 0, SEEK_END);
-	bwt->bwt_size = (ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
+	portable_fseek(fp, 0, SEEK_END);
+	bwt->bwt_size = (portable_ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
 	bwt->bwt = (uint32_t*)calloc(bwt->bwt_size, 4);
-	fseek(fp, 0, SEEK_SET);
+	portable_fseek(fp, 0, SEEK_SET);
 	fread(&bwt->primary, sizeof(bwtint_t), 1, fp);
 	fread(bwt->L2+1, sizeof(bwtint_t), 4, fp);
 	fread(bwt->bwt, 4, bwt->bwt_size, fp);

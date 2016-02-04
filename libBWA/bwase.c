@@ -1,4 +1,4 @@
-#include <unistd.h>
+#include "port.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -510,7 +510,13 @@ void bwa_sai2sam_se_core(const char *prefix, const char *fn_sa, const char *fn_f
 	bwase_initialize();
 	bns = bns_restore(prefix);
 	srand48(bns->seed);
+#ifdef WIN32
+	// patch by chuntao
+	// "r" mode will cause the program to hit EOF unexpectly
+	fp_sa = xopen(fn_sa, "rb");
+#else
 	fp_sa = xopen(fn_sa, "r");
+#endif
 
 	m_aln = 0;
 	fread(&opt, sizeof(gap_opt_t), 1, fp_sa);
@@ -581,7 +587,7 @@ int bwa_sai2sam_se(int argc, char *argv[])
 		return 1;
 	}
 	if ((prefix = bwa_idx_infer_prefix(argv[optind])) == 0) {
-		fprintf(stderr, "[%s] fail to locate the index\n", __func__);
+		fprintf(stderr, "[%s] fail to locate the index\n", __FUNCTION__);
 		return 0;
 	}
 	bwa_sai2sam_se_core(prefix, argv[optind+1], argv[optind+2], n_occ, rg_line);

@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "QSufSort.h"
+#include "port.h"
 
 typedef uint64_t bgint_t;
 typedef int64_t sbgint_t;
@@ -371,7 +372,7 @@ BWTInc *BWTIncCreate(const bgint_t textLength, unsigned int initialMaxBuildSize,
 		+ OCC_INTERVAL / BIT_PER_CHAR * n_iter * 2 * (sizeof(bgint_t) / 4) // buffer at the end of occ array 
 		+ incMaxBuildSize/5 * 3 * (sizeof(bgint_t) / 4); // space for the 3 temporary arrays in each iteration
 	if (bwtInc->availableWord < MIN_AVAILABLE_WORD) bwtInc->availableWord = MIN_AVAILABLE_WORD; // lh3: otherwise segfaul when availableWord is too small
-	fprintf(stderr, "[%s] textLength=%ld, availableWord=%ld\n", __func__, (long)textLength, (long)bwtInc->availableWord);
+	fprintf(stderr, "[%s] textLength=%ld, availableWord=%ld\n", __FUNCTION__, (long)textLength, (long)bwtInc->availableWord);
 	bwtInc->workingMemory = (unsigned*)calloc(bwtInc->availableWord, BYTES_IN_WORD);
 
 	return bwtInc;
@@ -526,7 +527,7 @@ static void BWTIncBuildPackedBwt(const bgint_t *relativeRank, unsigned int* __re
 	}
 }
 
-static inline bgint_t BWTOccValueExplicit(const BWT *bwt, const bgint_t occIndexExplicit,
+static myinline bgint_t BWTOccValueExplicit(const BWT *bwt, const bgint_t occIndexExplicit,
 											   const unsigned int character)
 {
 	bgint_t occIndexMajor;
@@ -1447,8 +1448,8 @@ BWTInc *BWTIncConstructFromPacked(const char *inputFileName, bgint_t initialMaxB
 		exit(1);
 	}
 
-	fseek(packedFile, -1, SEEK_END);
-	packedFileLen = ftell(packedFile);
+	portable_fseek(packedFile, -1, SEEK_END);
+	packedFileLen = portable_ftell(packedFile);
 	fread(&lastByteLength, sizeof(unsigned char), 1, packedFile);
 	totalTextLength = TextLengthFromBytePacked(packedFileLen, BIT_PER_CHAR, lastByteLength);
 
@@ -1463,10 +1464,10 @@ BWTInc *BWTIncConstructFromPacked(const char *inputFileName, bgint_t initialMaxB
 	}
 	textSizeInByte = textToLoad / CHAR_PER_BYTE;	// excluded the odd byte
 
-	fseek(packedFile, -2, SEEK_CUR);
-	fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
+	portable_fseek(packedFile, -2, SEEK_CUR);
+	portable_fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
 	fread(bwtInc->textBuffer, sizeof(unsigned char), textSizeInByte + 1, packedFile);
-	fseek(packedFile, -((long)textSizeInByte + 1), SEEK_CUR);
+	portable_fseek(packedFile, -((long)textSizeInByte + 1), SEEK_CUR);
 
 	ConvertBytePackedToWordPacked(bwtInc->textBuffer, bwtInc->packedText, ALPHABET_SIZE, textToLoad);
 	BWTIncConstruct(bwtInc, textToLoad);
@@ -1479,9 +1480,9 @@ BWTInc *BWTIncConstructFromPacked(const char *inputFileName, bgint_t initialMaxB
 			textToLoad = totalTextLength - processedTextLength;
 		}
 		textSizeInByte = textToLoad / CHAR_PER_BYTE;
-		fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
+		portable_fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
 		fread(bwtInc->textBuffer, sizeof(unsigned char), textSizeInByte, packedFile);
-		fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
+		portable_fseek(packedFile, -((long)textSizeInByte), SEEK_CUR);
 		ConvertBytePackedToWordPacked(bwtInc->textBuffer, bwtInc->packedText, ALPHABET_SIZE, textToLoad);
 		BWTIncConstruct(bwtInc, textToLoad);
 		processedTextLength += textToLoad;

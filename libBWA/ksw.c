@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <emmintrin.h>
 #include "ksw.h"
+#include "port.h"
 
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
@@ -453,7 +454,7 @@ int ksw_extend(int qlen, const uint8_t *query, int tlen, const uint8_t *target, 
 
 #define MINUS_INF -0x40000000
 
-static inline uint32_t *push_cigar(int *n_cigar, int *m_cigar, uint32_t *cigar, int op, int len)
+static myinline uint32_t *push_cigar(int *n_cigar, int *m_cigar, uint32_t *cigar, int op, int len)
 {
 	if (*n_cigar == 0 || op != (cigar[(*n_cigar) - 1]&0xf)) {
 		if (*n_cigar == *m_cigar) {

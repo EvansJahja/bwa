@@ -133,7 +133,7 @@ typedef unsigned long long khint64_t;
 #ifdef _MSC_VER
 #define kh_inline __inline
 #else
-#define kh_inline inline
+#define kh_inline myinline
 #endif
 
 typedef khint32_t khint_t;

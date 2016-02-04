@@ -2,12 +2,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
-#include <unistd.h>
+#include "port.h"
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <sys/wait.h>
-#include <sys/types.h>
+
 #ifndef _WIN32
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -200,6 +199,7 @@ ftp_open_end:
 }
 #endif /* !defined(_KO_NO_NET) */
 
+#ifndef _WIN32
 static char **cmd2argv(const char *cmd)
 {
 	int i, beg, end, argc;
@@ -342,4 +342,6 @@ int main(int argc, char *argv[])
 	kclose(x);
 	return 0;
 }
+#endif
+
 #endif

@@ -3,10 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
-#ifdef HAVE_PTHREAD
-#include <pthread.h>
-#endif
-
+#include "port.h"
 #include "kstring.h"
 #include "bwamem.h"
 #include "bntseq.h"
@@ -475,7 +472,7 @@ int mem_chain2aln_short(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac,
 	return 0;
 }
 
-static inline int cal_max_gap(const mem_opt_t *opt, int qlen)
+static myinline int cal_max_gap(const mem_opt_t *opt, int qlen)
 {
 	int l = (int)((double)(qlen * opt->a - opt->q) / opt->r + 1.);
 	l = l > 1? l : 1;
@@ -608,7 +605,7 @@ void mem_chain2aln(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac, int 
  * Basic hit->SAM conversion *
  *****************************/
 
-static inline int infer_bw(int l1, int l2, int score, int a, int q, int r)
+static myinline int infer_bw(int l1, int l2, int score, int a, int q, int r)
 {
 	int w;
 	if (l1 == l2 && l1 * a - score < (q + r - a)<<1) return 0; // to get equal alignment length, we need at least two gaps
@@ -617,7 +614,7 @@ static inline int infer_bw(int l1, int l2, int score, int a, int q, int r)
 	return w;
 }
 
-static inline int get_rlen(int n_cigar, const uint32_t *cigar)
+static myinline int get_rlen(int n_cigar, const uint32_t *cigar)
 {
 	int k, l;
 	for (k = l = 0; k < n_cigar; ++k) {

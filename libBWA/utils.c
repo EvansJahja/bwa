@@ -31,8 +31,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <errno.h>
-#include <sys/resource.h>
-#include <sys/time.h>
+#include "port.h"
 #include "utils.h"
 
 #include "ksort.h"
@@ -111,9 +110,10 @@ int err_printf(const char *format, ...)
 {
 	va_list arg;
 	int done;
+	int saveErrno;
 	va_start(arg, format);
 	done = vfprintf(stdout, format, arg);
-	int saveErrno = errno;
+	saveErrno = errno;
 	va_end(arg);
 	if (done < 0) err_fatal_simple_core("vfprintf(stdout)", strerror(saveErrno));
 	return done;
@@ -123,9 +123,10 @@ int err_fprintf(FILE *stream, const char *format, ...)
 {
 	va_list arg;
 	int done;
+	int saveErrno;
 	va_start(arg, format);
 	done = vfprintf(stream, format, arg);
-	int saveErrno = errno;
+	saveErrno = errno;
 	va_end(arg);
 	if (done < 0) err_fatal_simple_core("vfprintf", strerror(saveErrno));
 	return done;
