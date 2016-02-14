@@ -32,6 +32,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
+
 typedef struct {
 	int32_t is_internal:1, n:31;
 } kbnode_t;
@@ -73,7 +77,7 @@ typedef struct {
 			*top++ = (b)->root;											\
 			while (top != stack) {										\
 				x = *--top;												\
-				if (x->is_internal == 0) { free(x); continue; }			\
+				if (x == 0 || x->is_internal == 0) { free(x); continue; } \
 				for (i = 0; i <= x->n; ++i)								\
 					if (__KB_PTR(b, x)[i]) {							\
 						if (top - stack == max) {						\

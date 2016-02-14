@@ -30,9 +30,14 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <limits.h>
 #include "utils.h"
 #include "bwt.h"
 #include "kvec.h"
+
+#ifdef USE_MALLOC_WRAPPERS
+#  include "malloc_wrap.h"
+#endif
 
 void bwt_gen_cnt_table(bwt_t *bwt)
 {
@@ -67,10 +72,6 @@ void bwt_cal_sa(bwt_t *bwt, int intv)
 	bwt->sa_intv = intv;
 	bwt->n_sa = (bwt->seq_len + intv) / intv;
 	bwt->sa = (bwtint_t*)calloc(bwt->n_sa, sizeof(bwtint_t));
-	if (bwt->sa == 0) {
-		fprintf(stderr, "[%s] Fail to allocate %.3fMB memory. Abort!\n", __FUNCTION__, bwt->n_sa * sizeof(bwtint_t) / 1024.0/1024.0);
-		abort();
-	}
 	// calculate SA value
 	isa = 0; sa = bwt->seq_len;
 	for (i = 0; i < bwt->seq_len; ++i) {
@@ -284,8 +285,8 @@ static void bwt_reverse_intvs(bwtintv_v *p)
 		}
 	}
 }
-
-int bwt_smem1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, bwtintv_v *mem, bwtintv_v *tmpvec[2])
+// NOTE: $max_intv is not currently used in BWA-MEM
+int bwt_smem1a(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, uint64_t max_intv, bwtintv_v *mem, bwtintv_v *tmpvec[2])
 {
 	int i, j, c, ret;
 	bwtintv_t ik, ok[4];
@@ -301,7 +302,10 @@ int bwt_smem1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, 
 	ik.info = x + 1;
 
 	for (i = x + 1, curr->n = 0; i < len; ++i) { // forward search
-		if (q[i] < 4) { // an A/C/G/T base
+		if (ik.x[2] < max_intv) { // an interval small enough
+			kv_push(bwtintv_t, *curr, ik);
+			break;
+		} else if (q[i] < 4) { // an A/C/G/T base
 			c = 3 - q[i]; // complement of q[i]
 			bwt_extend(bwt, &ik, ok, 0);
 			if (ok[c].x[2] != ik.x[2]) { // change of the interval size
@@ -323,8 +327,8 @@ int bwt_smem1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, 
 		c = i < 0? -1 : q[i] < 4? q[i] : -1; // c==-1 if i<0 or q[i] is an ambiguous base
 		for (j = 0, curr->n = 0; j < prev->n; ++j) {
 			bwtintv_t *p = &prev->a[j];
-			bwt_extend(bwt, p, ok, 1);
-			if (c < 0 || ok[c].x[2] < min_intv) { // keep the hit if reaching the beginning or an ambiguous base or the intv is small enough
+			if (c >= 0 && ik.x[2] >= max_intv) bwt_extend(bwt, p, ok, 1);
+			if (c < 0 || ik.x[2] < max_intv || ok[c].x[2] < min_intv) { // keep the hit if reaching the beginning or an ambiguous base or the intv is small enough
 				if (curr->n == 0) { // test curr->n>0 to make sure there are no longer matches
 					if (mem->n == 0 || i + 1 < mem->a[mem->n-1].info>>32) { // skip contained matches
 						ik = *p; ik.info |= (uint64_t)(i + 1)<<32;
@@ -346,6 +350,34 @@ int bwt_smem1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, 
 	return ret;
 }
 
+int bwt_smem1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_intv, bwtintv_v *mem, bwtintv_v *tmpvec[2])
+{
+	return bwt_smem1a(bwt, len, q, x, min_intv, 0, mem, tmpvec);
+}
+
+int bwt_seed_strategy1(const bwt_t *bwt, int len, const uint8_t *q, int x, int min_len, int max_intv, bwtintv_t *mem)
+{
+	int i, c;
+	bwtintv_t ik, ok[4];
+
+	memset(mem, 0, sizeof(bwtintv_t));
+	if (q[x] > 3) return x + 1;
+	bwt_set_intv(bwt, q[x], ik); // the initial interval of a single base
+	for (i = x + 1; i < len; ++i) { // forward search
+		if (q[i] < 4) { // an A/C/G/T base
+			c = 3 - q[i]; // complement of q[i]
+			bwt_extend(bwt, &ik, ok, 0);
+			if (ok[c].x[2] < max_intv && i - x >= min_len) {
+				*mem = ok[c];
+				mem->info = (uint64_t)x<<32 | (i + 1);
+				return i + 1;
+			}
+			ik = ok[c];
+		} else return i + 1;
+	}
+	return len;
+}
+
 /*************************
  * Read/write BWT and SA *
  *************************/
@@ -354,22 +386,36 @@ void bwt_dump_bwt(const char *fn, const bwt_t *bwt)
 {
 	FILE *fp;
 	fp = xopen(fn, "wb");
-	fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp);
-	fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp);
-	fwrite(bwt->bwt, 4, bwt->bwt_size, fp);
-	fclose(fp);
+	err_fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp);
+	err_fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp);
+	err_fwrite(bwt->bwt, 4, bwt->bwt_size, fp);
+	err_fflush(fp);
+	err_fclose(fp);
 }
 
 void bwt_dump_sa(const char *fn, const bwt_t *bwt)
 {
 	FILE *fp;
 	fp = xopen(fn, "wb");
-	fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp);
-	fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp);
-	fwrite(&bwt->sa_intv, sizeof(bwtint_t), 1, fp);
-	fwrite(&bwt->seq_len, sizeof(bwtint_t), 1, fp);
-	fwrite(bwt->sa + 1, sizeof(bwtint_t), bwt->n_sa - 1, fp);
-	fclose(fp);
+	err_fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp);
+	err_fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp);
+	err_fwrite(&bwt->sa_intv, sizeof(bwtint_t), 1, fp);
+	err_fwrite(&bwt->seq_len, sizeof(bwtint_t), 1, fp);
+	err_fwrite(bwt->sa + 1, sizeof(bwtint_t), bwt->n_sa - 1, fp);
+	err_fflush(fp);
+	err_fclose(fp);
+}
+
+static bwtint_t fread_fix(FILE *fp, bwtint_t size, void *a)
+{ // Mac/Darwin has a bug when reading data longer than 2GB. This function fixes this issue by reading data in small chunks
+	const int bufsize = 0x1000000; // 16M block
+	bwtint_t offset = 0;
+	while (size) {
+		int x = bufsize < size? bufsize : size;
+		if ((x = err_fread_noeof(a + offset, 1, x, fp)) == 0) break;
+		size -= x; offset += x;
+	}
+	return offset;
 }
 
 void bwt_restore_sa(const char *fn, bwt_t *bwt)
@@ -379,19 +425,19 @@ void bwt_restore_sa(const char *fn, bwt_t *bwt)
 	bwtint_t primary;
 
 	fp = xopen(fn, "rb");
-	fread(&primary, sizeof(bwtint_t), 1, fp);
+	err_fread_noeof(&primary, sizeof(bwtint_t), 1, fp);
 	xassert(primary == bwt->primary, "SA-BWT inconsistency: primary is not the same.");
-	fread(skipped, sizeof(bwtint_t), 4, fp); // skip
-	fread(&bwt->sa_intv, sizeof(bwtint_t), 1, fp);
-	fread(&primary, sizeof(bwtint_t), 1, fp);
+	err_fread_noeof(skipped, sizeof(bwtint_t), 4, fp); // skip
+	err_fread_noeof(&bwt->sa_intv, sizeof(bwtint_t), 1, fp);
+	err_fread_noeof(&primary, sizeof(bwtint_t), 1, fp);
 	xassert(primary == bwt->seq_len, "SA-BWT inconsistency: seq_len is not the same.");
 
 	bwt->n_sa = (bwt->seq_len + bwt->sa_intv) / bwt->sa_intv;
 	bwt->sa = (bwtint_t*)calloc(bwt->n_sa, sizeof(bwtint_t));
 	bwt->sa[0] = -1;
 
-	fread(bwt->sa + 1, sizeof(bwtint_t), bwt->n_sa - 1, fp);
-	fclose(fp);
+	fread_fix(fp, sizeof(bwtint_t) * (bwt->n_sa - 1), bwt->sa + 1);
+	err_fclose(fp);
 }
 
 bwt_t *bwt_restore_bwt(const char *fn)
@@ -401,15 +447,15 @@ bwt_t *bwt_restore_bwt(const char *fn)
 
 	bwt = (bwt_t*)calloc(1, sizeof(bwt_t));
 	fp = xopen(fn, "rb");
-	portable_fseek(fp, 0, SEEK_END);
-	bwt->bwt_size = (portable_ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
+	err_fseek(fp, 0, SEEK_END);
+	bwt->bwt_size = (err_ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
 	bwt->bwt = (uint32_t*)calloc(bwt->bwt_size, 4);
-	portable_fseek(fp, 0, SEEK_SET);
-	fread(&bwt->primary, sizeof(bwtint_t), 1, fp);
-	fread(bwt->L2+1, sizeof(bwtint_t), 4, fp);
-	fread(bwt->bwt, 4, bwt->bwt_size, fp);
+	err_fseek(fp, 0, SEEK_SET);
+	err_fread_noeof(&bwt->primary, sizeof(bwtint_t), 1, fp);
+	err_fread_noeof(bwt->L2+1, sizeof(bwtint_t), 4, fp);
+	fread_fix(fp, bwt->bwt_size<<2, bwt->bwt);
 	bwt->seq_len = bwt->L2[4];
-	fclose(fp);
+	err_fclose(fp);
 	bwt_gen_cnt_table(bwt);
 
 	return bwt;
